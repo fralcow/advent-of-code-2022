@@ -11,10 +11,13 @@ fn main() {
         }
     };
 
-    let rucksacks: Vec<&str> = rucksacks.split("\n").collect();
+    let rucksacks: Vec<&str> = rucksacks
+        .split("\n")
+        .filter(|line| !line.is_empty())
+        .collect();
     let mut dupes: Vec<char> = vec![];
 
-    for rucksack in rucksacks {
+    for rucksack in rucksacks.clone() {
         let set_left: HashSet<char, _> =
             HashSet::<char>::from_iter(rucksack[0..rucksack.len() / 2].chars());
         let set_right: HashSet<char, _> =
@@ -32,21 +35,41 @@ fn main() {
         };
     }
 
-    println!("dupes: {:?}", dupes);
-
     let priorities: usize = dupes
         .into_iter()
         .map(|dupe| {
-            let dupe = dupe as usize;
-            if dupe >= 97 && dupe <= 122 {
-                return dupe - (97 - 1);
-            } else if dupe >= 65 && dupe <= 90 {
-                return dupe - (65 - 27);
-            }
-
-            return 0;
+            return calculate_priority(dupe);
         })
         .sum();
 
-    println!("priorities: {:?}", priorities);
+    println!("priorities 1: {:?}", priorities);
+
+    // Problem 2
+    let groups = rucksacks.chunks(3);
+
+    let mut priorities: usize = 0;
+
+    for g in groups {
+        let set_1 = HashSet::<char>::from_iter(g[0].chars());
+        let set_2 = HashSet::<char>::from_iter(g[1].chars());
+        let set_3 = HashSet::<char>::from_iter(g[2].chars());
+
+        let dupe: HashSet<char> = set_1.intersection(&set_2).cloned().collect();
+        let dupe: HashSet<char> = dupe.intersection(&set_3).cloned().collect();
+
+        priorities += calculate_priority(dupe.into_iter().next().unwrap());
+    }
+
+    println!("priorities 2: {:?}", priorities);
+}
+
+fn calculate_priority(letter: char) -> usize {
+    let letter: usize = letter as usize;
+    if letter >= 97 && letter <= 122 {
+        return letter - (97 - 1);
+    } else if letter >= 65 && letter <= 90 {
+        return letter - (65 - 27);
+    }
+
+    return 0;
 }
