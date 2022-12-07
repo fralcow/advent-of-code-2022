@@ -510,7 +510,7 @@ move 13 from 6 to 3
 move 9 from 9 to 5
 move 1 from 2 to 8
 move 8 from 5 to 1
-move 1 from 2 to 7`.split('\n').map((v) => {const v_split = v.split(' '); return {amount: parseInt(v_split[1], 10), from: parseInt(v_split[3]), to: parseInt(v_split[5])}});
+move 1 from 2 to 7`.split('\n').map((v) => { const v_split = v.split(' '); return { amount: parseInt(v_split[1], 10), from: parseInt(v_split[3]), to: parseInt(v_split[5]) } });
 
 const storage_1 = JSON.parse(JSON.stringify(storage));
 commands.forEach((v) => execute_command(storage_1, v.amount, v.from, v.to))
@@ -520,12 +520,13 @@ const storage_2 = JSON.parse(JSON.stringify(storage));
 console.log('storage_2', storage_2);
 
 commands.map((v) => {
-  storage_2[v.to - 1].push(...storage_2[v.from - 1].splice(-Math.abs(v.amount)))});
+  storage_2[v.to - 1].push(...storage_2[v.from - 1].splice(-Math.abs(v.amount)))
+});
 console.log('problem 2', storage_2.reduce((a, v) => a + v.slice(-1), ''));
 
 function execute_command(storage, amount, from, to) {
-    for (let i = 0; i < amount; i++) {
+  for (let i = 0; i < amount; i++) {
     const container = storage[from - 1].pop();
     storage[to - 1].push(container);
-    }
+  }
 }
