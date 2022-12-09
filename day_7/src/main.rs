@@ -1,83 +1,118 @@
-use std::cell::RefCell;
-use std::rc::{Rc, Weak};
+mod input;
 
-struct File {
-    size: u64,
+use camino::Utf8PathBuf;
+use nom::{
+    branch::alt,
+    bytes::complete::{tag, take_while1},
+    combinator::{all_consuming, map},
+    sequence::{preceded, separated_pair},
+    Finish, IResult,
+};
+use std::collections::HashMap;
+
+fn parse_path(i: &str) -> IResult<&str, Utf8PathBuf> {
+    map(
+        take_while1(|c: char| "abcdefghijklmnopqrstuvwxyz./".contains(c)),
+        Into::into,
+    )(i)
 }
 
-type Directories<'a> = Vec<Rc<RefCell<Directory<'a>>>>;
+#[derive(Debug)]
+struct Ls;
 
-impl<'a> Directory<'a> {
-    fn size(&'a self) -> usize {
-        todo!();
+fn parse_ls(i: &str) -> IResult<&str, Ls> {
+    map(tag("ls"), |_| Ls)(i)
+}
+
+#[derive(Debug)]
+struct Cd(Utf8PathBuf);
+
+fn parse_cd(i: &str) -> IResult<&str, Cd> {
+    map(preceded(tag("cd "), parse_path), Cd)(i)
+}
+
+#[derive(Debug)]
+enum Command {
+    Ls,
+    Cd(Utf8PathBuf),
+}
+
+impl From<Ls> for Command {
+    fn from(_ls: Ls) -> Self {
+        Command::Ls
     }
 }
 
-#[derive(Default)]
-struct Directory<'a> {
-    parent: Option<Weak<RefCell<Directory<'a>>>>,
-    directories: Directories<'a>,
-    name: &'a str,
-    files: Vec<File>,
-}
-
-#[derive(Default)]
-struct Filesystem<'a> {
-    root: Directory<'a>,
-}
-
-impl<'a> Filesystem<'a> {
-    fn parse_to_tree(&'a self, input: &str) -> Filesystem {
-        todo!();
-    }
-
-    fn get_directories(&'a self) -> Directories<'a> {
-        todo!();
+impl From<Cd> for Command {
+    fn from(cd: Cd) -> Self {
+        Command::Cd(cd.0)
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+fn parse_command(i: &str) -> IResult<&str, Command> {
+    let (i, _) = tag("$ ")(i)?;
+    alt((map(parse_ls, Into::into), map(parse_cd, Into::into)))(i)
+}
 
-    #[test]
-    fn test_part_1() {
-        let input = "$ cd /
-$ ls
-dir a
-14848514 b.txt
-8504156 c.dat
-dir d
-$ cd a
-$ ls
-dir e
-29116 f
-2557 g
-62596 h.lst
-$ cd e
-$ ls
-584 i
-$ cd ..
-$ cd ..
-$ cd d
-$ ls
-4060174 j
-8033020 d.log
-5626152 d.ext
-7214296 k";
+#[derive(Debug)]
+enum Entry {
+    Dir(Utf8PathBuf),
+    File(u64, Utf8PathBuf),
+}
 
-        let fs: Filesystem = Default::default();
+fn parse_entry(i: &str) -> IResult<&str, Entry> {
+    let parse_file = map(
+        separated_pair(nom::character::complete::u64, tag(" "), parse_path),
+        |(size, path)| Entry::File(size, path),
+    );
+    let parse_dir = map(preceded(tag("dir "), parse_path), Entry::Dir);
 
-        let problem_1_get = fs
-            .get_directories()
-            .iter()
-            .filter(|&&d| d.size() <= 100000)
-            .map(|d| d.size())
-            .sum();
-        assert_eq!(problem_1_get, 95437);
-    }
+    alt((parse_file, parse_dir))(i)
+}
+
+#[derive(Debug, Default)]
+struct Node {
+    size: usize,
+    children: HashMap<Utf8PathBuf, Node>,
+}
+
+#[derive(Debug)]
+enum Line {
+    Command(Command),
+    Entry(Entry),
+}
+
+fn parse_line(i: &str) -> IResult<&str, Line> {
+    alt((
+        map(parse_command, Line::Command),
+        map(parse_entry, Line::Entry),
+    ))(i)
 }
 
 fn main() {
-    println!("Hello, world!");
+    let lines = input::TEST_INPUT
+        .lines()
+        .map(|l| all_consuming(parse_line)(l).finish().unwrap().1);
+
+    let mut node = Node::default();
+
+    for line in lines {
+        println!("{line:?}");
+        match line {
+            Line::Command(cmd) => match cmd {
+                Command::Ls => {
+                    // ignore those
+                }
+                Command::Cd(path) =>
+            },
+            Line::Entry(entry) => match entry {
+                Entry::Dir(dir) => {
+                    node.children.entry(dir).or_default();
+                }
+                Entry::File(size, file) => {
+                    node.children.entry(file).or_default().size = size as usize;
+                }
+            },
+        }
+    }
 }
