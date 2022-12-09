@@ -1,6 +1,7 @@
 mod input;
 
 use camino::Utf8PathBuf;
+use id_tree::{InsertBehavior, Node, Tree};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while1},
@@ -8,7 +9,6 @@ use nom::{
     sequence::{preceded, separated_pair},
     Finish, IResult,
 };
-use std::collections::HashMap;
 
 fn parse_path(i: &str) -> IResult<&str, Utf8PathBuf> {
     map(
@@ -70,16 +70,16 @@ fn parse_entry(i: &str) -> IResult<&str, Entry> {
     alt((parse_file, parse_dir))(i)
 }
 
-#[derive(Debug, Default)]
-struct Node {
-    size: usize,
-    children: HashMap<Utf8PathBuf, Node>,
-}
-
 #[derive(Debug)]
 enum Line {
     Command(Command),
     Entry(Entry),
+}
+
+#[derive(Debug)]
+struct FsEntry {
+    path: Utf8PathBuf,
+    size: u64,
 }
 
 fn parse_line(i: &str) -> IResult<&str, Line> {
@@ -89,12 +89,30 @@ fn parse_line(i: &str) -> IResult<&str, Line> {
     ))(i)
 }
 
-fn main() {
-    let lines = input::TEST_INPUT
+fn total_size(tree: &Tree<FsEntry>, node: &Node<FsEntry>) -> color_eyre::Result<u64> {
+    let mut total = node.data().size;
+    for child in node.children() {
+        total += total_size(tree, tree.get(child)?)?;
+    }
+    return Ok(total);
+}
+
+fn main() -> color_eyre::Result<()> {
+    color_eyre::install().unwrap();
+
+    let lines = input::ACTUAL_INPUT
         .lines()
         .map(|l| all_consuming(parse_line)(l).finish().unwrap().1);
 
-    let mut node = Node::default();
+    let mut tree = Tree::<FsEntry>::new();
+    let root = tree.insert(
+        Node::new(FsEntry {
+            path: "/".into(),
+            size: 0,
+        }),
+        InsertBehavior::AsRoot,
+    )?;
+    let mut curr = root;
 
     for line in lines {
         println!("{line:?}");
@@ -103,16 +121,63 @@ fn main() {
                 Command::Ls => {
                     // ignore those
                 }
-                Command::Cd(path) =>
+                Command::Cd(path) => match path.as_str() {
+                    "/" => {} // we're already here
+                    ".." => {
+                        curr = tree.get(&curr)?.parent().unwrap().clone();
+                    }
+                    _ => {
+                        let node = Node::new(FsEntry {
+                            path: path.clone(),
+                            size: 0,
+                        });
+                        curr = tree.insert(node, InsertBehavior::UnderNode(&curr))?;
+                    }
+                },
             },
             Line::Entry(entry) => match entry {
-                Entry::Dir(dir) => {
-                    node.children.entry(dir).or_default();
+                Entry::Dir(_) => {
+                    // ignore for now
                 }
-                Entry::File(size, file) => {
-                    node.children.entry(file).or_default().size = size as usize;
+                Entry::File(size, path) => {
+                    let node = Node::new(FsEntry { size, path });
+                    tree.insert(node, InsertBehavior::UnderNode(&curr))?;
                 }
             },
         }
     }
+
+    let mut s = String::new();
+    tree.write_formatted(&mut s)?;
+    println!("{s}");
+
+    let sum = tree
+        .traverse_pre_order(tree.root_node_id().unwrap())?
+        .filter(|n| !n.children().is_empty())
+        .map(|n| total_size(&tree, n).unwrap())
+        .filter(|&s| s <= 100_000)
+        .inspect(|s| {
+            dbg!(s);
+        })
+        .sum::<u64>();
+    println!("Problem 1: {sum}");
+
+    let total_space = 70000000_u64;
+    let used_space = total_size(&tree, tree.get(tree.root_node_id().unwrap())?)?;
+    let free_space = total_space.checked_sub(dbg!(used_space)).unwrap();
+    let needed_free_space = 30000000_u64;
+    let minimum_space_to_free = needed_free_space.checked_sub(free_space).unwrap();
+
+    let size_to_remove = tree
+        .traverse_pre_order(tree.root_node_id().unwrap())?
+        .filter(|n| !n.children().is_empty())
+        .map(|n| total_size(&tree, n).unwrap())
+        .filter(|&s| s >= minimum_space_to_free)
+        .inspect(|s| {
+            dbg!(s);
+        })
+        .min();
+    println!("Problem 2, Size to remove: {size_to_remove:?}");
+
+    return Ok(());
 }
