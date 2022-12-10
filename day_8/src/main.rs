@@ -34,12 +34,27 @@ impl fmt::Display for Tree {
 struct Forest(Vec<Vec<Tree>>);
 
 impl Forest {
-    fn get_tree(&self, x: usize, y: usize) -> &mut Tree {
-        todo!();
+    fn get_tree(&mut self, x: usize, y: usize) -> Option<&mut Tree> {
+        if x > self.0[0].len() || y > self.0.len() {
+            return None;
+        }
+
+        return Some(self.0.get_mut(x).unwrap().get_mut(y).unwrap());
     }
 
-    fn mark_visible_trees(&self) -> () {
-        todo!();
+    fn mark_visible_trees(&mut self) {
+        // left to right
+        self.0
+            .iter_mut()
+            .for_each(|row| mark_visible_trees_in_row(row));
+        // top to bottom
+        // right to left
+        self.0.iter_mut().for_each(|row| {
+            row.reverse();
+            mark_visible_trees_in_row(row);
+            row.reverse();
+        });
+        // bottom to top
     }
 }
 
@@ -94,8 +109,24 @@ fn parse_to_forest(input: &str) -> Forest {
     return forest;
 }
 
+fn mark_visible_trees_in_row(row: &mut Vec<Tree>) -> () {
+    let mut max_height: u32 = 0;
+    let mut first_tree = true;
+    row.iter_mut().for_each(|tree| {
+        if tree.height > max_height || first_tree {
+            tree.visible = true;
+            max_height = tree.height;
+            if first_tree {
+                first_tree = false
+            };
+        }
+    });
+}
+
 fn main() {
     let mut f = parse_to_forest(input::TEST_INPUT);
+
+    f.mark_visible_trees();
 
     println!("forest: {}", f);
 }
