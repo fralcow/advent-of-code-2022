@@ -281,7 +281,7 @@ mod tests {
 }
 
 fn main() {
-    let mut f = parse_to_forest(input::TEST_INPUT);
+    let mut f = parse_to_forest(input::REAL_INPUT);
 
     f.mark_visible_trees();
 
@@ -293,4 +293,16 @@ fn main() {
         "(2,1) tree scenic score: {}",
         f.tree_scenic_score(2, 1).unwrap_or(0)
     );
+
+    let mut max_scenic_score: usize = 0;
+    for x in 0..f.0[0].len() {
+        for y in 0..f.0.len() {
+            let s = f.tree_scenic_score(x, y);
+            if s.unwrap_or(0) > max_scenic_score {
+                max_scenic_score = s.unwrap();
+            }
+        }
+    }
+
+    println!("max_scenic_score: {:?}", max_scenic_score);
 }
