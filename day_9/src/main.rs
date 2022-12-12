@@ -13,6 +13,36 @@ enum Direction {
     UpLeft,
 }
 
+struct Command {
+    direction: Direction,
+    repeat: u32,
+}
+
+impl Command {
+    fn new(direction: Direction, repeat: u32) -> Self {
+        return Command { direction, repeat };
+    }
+
+    fn parse_string(input: &str) -> Option<Self> {
+        let (direction, repeat) = input.split_once(" ")?;
+
+        let direction = match direction.to_lowercase().as_str() {
+            "u" => Direction::Up,
+            "r" => Direction::Right,
+            "d" => Direction::Down,
+            "l" => Direction::Left,
+            _ => return None,
+        };
+
+        let repeat: u32 = match repeat.parse() {
+            Ok(v) => v,
+            _ => return None,
+        };
+
+        return Some(Command::new(direction, repeat));
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 struct Cell {
     x: i32,
@@ -117,8 +147,16 @@ impl Rope {
         }
 
         // // add the tail cell to the tail visited vector
-        self.tail.visitedCells.push(self.tail.cell.clone());
+        if !self.tail.visitedCells.contains(&self.tail.cell) {
+            self.tail.visitedCells.push(self.tail.cell.clone());
+        }
         return;
+    }
+
+    fn execute_command(&mut self, command: &Command) {
+        for _i in 0..command.repeat {
+            self.move_by_head(command.direction);
+        }
     }
 }
 
@@ -194,10 +232,17 @@ impl Display for RopeEnd {
 }
 
 fn main() {
-    let mut r = Rope::new();
-    r.move_by_head(Direction::Up);
-    println!("rope:\n{}", r);
+    let commands: Vec<Command> = input::REAL_INPUT
+        .split("\n")
+        .map(|row| Command::parse_string(row).unwrap_or_else(|| panic!("failed to parse command")))
+        .collect();
 
-    r.move_by_head(Direction::Up);
-    println!("rope:\n{}", r);
+    let mut r = Rope::new();
+
+    for command in commands {
+        r.execute_command(&command);
+    }
+
+    println!("r.tail.visitedCells: {:?}", r.tail.visitedCells);
+    println!("r.tail.visitedCells.len(): {:?}", r.tail.visitedCells.len());
 }
