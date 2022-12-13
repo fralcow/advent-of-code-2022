@@ -1,6 +1,7 @@
 mod input;
 
 use std::fmt::Display;
+use std::ops::RangeInclusive;
 
 struct Circut {
     cycle: u32,
