@@ -1,6 +1,7 @@
 mod input;
 
 use std::fmt::Display;
+use std::ops::RangeInclusive;
 
 struct Circut {
     cycle: u32,
@@ -12,7 +13,7 @@ struct Circut {
 impl Circut {
     fn new() -> Self {
         return Circut {
-            cycle: 1,
+            cycle: 0,
             remaining_cycles: 0,
             command: None,
             register: 1,
@@ -119,12 +120,9 @@ fn main() {
             c.assign_command(cmd.clone())
         };
         while c.command.is_some() {
-            println!("cmd: {:?}", c.command);
             c.run_cycle();
-            println!("c from the cycle: {}", c);
             if c.cycle == 20 || ((c.cycle > 21) && (((c.cycle - 20) % 40) == 0)) {
                 let signal_strength = i32::try_from(c.cycle).ok().unwrap() * c.register;
-                println!("signal_strength: {signal_strength}");
                 accum += signal_strength;
             }
         }
@@ -133,4 +131,36 @@ fn main() {
 
     println!("c: {}", c);
     println!("signal_strenghts: {}", signal_strenghts);
+
+    // problem 2
+    let mut c = Circut::new();
+    let mut accum = "".to_string();
+
+    cmds.iter().for_each(|cmd| {
+        if c.command.is_none() {
+            c.assign_command(cmd.clone())
+        };
+        while c.command.is_some() {
+            if RangeInclusive::new(c.register - 1, c.register + 1)
+                .contains(&i32::try_from(c.cycle % 40).ok().unwrap())
+            {
+                accum.push('#')
+            } else {
+                accum.push('.')
+            }
+            c.run_cycle();
+        }
+    });
+
+    let (ln_1, ln_2) = accum.split_at(40);
+    let (ln_2, ln_3) = ln_2.split_at(40);
+    let (ln_3, ln_4) = ln_3.split_at(40);
+    let (ln_4, ln_5) = ln_4.split_at(40);
+    let (ln_5, ln_6) = ln_5.split_at(40);
+    println!("{}", ln_1);
+    println!("{}", ln_2);
+    println!("{}", ln_3);
+    println!("{}", ln_4);
+    println!("{}", ln_5);
+    println!("{}", ln_6);
 }
