@@ -1,7 +1,7 @@
 mod input;
 use std::fmt::Display;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 enum Direction {
     Up,
     UpRight,
@@ -13,6 +13,7 @@ enum Direction {
     UpLeft,
 }
 
+#[derive(Debug)]
 struct Command {
     direction: Direction,
     repeat: u32,
@@ -86,116 +87,214 @@ fn touches_test() {
 }
 
 struct Rope {
-    head: RopeEnd,
-    tail: RopeEnd,
+    knots: Vec<Knot>,
 }
 
 impl Rope {
-    fn new() -> Self {
-        return Rope {
-            head: RopeEnd::new(0, 0),
-            tail: RopeEnd::new(0, 0),
-        };
+    fn new(knots_number: u32) -> Self {
+        let knots: Vec<Knot> = (0..knots_number).map(|_v| Knot::new(0, 0)).collect();
+
+        return Rope { knots };
     }
 
-    fn move_by_head(&mut self, direction: Direction) {
-        // move head
-        self.head.move_command(direction.clone());
+    fn get_tail(&self) -> &Knot {
+        return &self.knots[self.knots.len() - 1];
+    }
 
-        // check if tail still touches the head
-        if self.head.cell.touches(self.tail.cell) {
+    fn move_knot(&mut self, direction: Direction, knot_index: usize) {
+        // -1 for len = max_index + 1
+        if knot_index > self.knots.len() - 1 {
             return;
         }
 
-        // // if same column/row -> move in same direction as head
+        // move head
+        self.knots[knot_index].move_command(direction.clone());
+
+        // case for the last element
+        if knot_index > self.knots.len() - 2 {
+            return;
+        }
+
+        // check if tail still touches the head
+        if self.knots[knot_index]
+            .cell
+            .touches(self.knots[knot_index + 1].cell)
+        {
+            return;
+        }
+
+        // // if same column/row -> move in same direction as knots[knot_index]
         // move tail
-        if self.tail.cell.x == self.head.cell.x || self.tail.cell.y == self.head.cell.y {
-            self.tail.move_command(direction.clone());
+        if (self.knots[knot_index + 1].cell.x == self.knots[knot_index].cell.x
+            || self.knots[knot_index + 1].cell.y == self.knots[knot_index].cell.y)
+            && [
+                Direction::Up,
+                Direction::Right,
+                Direction::Down,
+                Direction::Left,
+            ]
+            .contains(&direction)
+        {
+            self.move_knot(direction.clone(), knot_index + 1);
         } else {
             // // if in different column -> move to the cell with the same x or y
             match direction {
                 Direction::Up => {
-                    if self.tail.cell.x - self.head.cell.x < 0 {
-                        self.tail.move_command(Direction::UpRight);
+                    if self.knots[knot_index + 1].cell.x - self.knots[knot_index].cell.x < 0 {
+                        self.move_knot(Direction::UpRight, knot_index + 1);
                     } else {
-                        self.tail.move_command(Direction::UpLeft);
+                        self.move_knot(Direction::UpLeft, knot_index + 1);
                     }
+                }
+                Direction::UpRight => {
+                    if self.knots[knot_index + 1].cell.x == self.knots[knot_index].cell.x {
+                        self.move_knot(Direction::Up, knot_index + 1)
+                    } else if self.knots[knot_index + 1].cell.y == self.knots[knot_index].cell.y {
+                        self.move_knot(Direction::Right, knot_index + 1)
+                    } else {
+                        self.move_knot(Direction::UpRight, knot_index + 1)
+                    };
                 }
                 Direction::Right => {
-                    if self.tail.cell.y - self.head.cell.y < 0 {
-                        self.tail.move_command(Direction::UpRight);
+                    if self.knots[knot_index + 1].cell.y - self.knots[knot_index].cell.y < 0 {
+                        self.move_knot(Direction::UpRight, knot_index + 1);
                     } else {
-                        self.tail.move_command(Direction::DownRight);
+                        self.move_knot(Direction::DownRight, knot_index + 1);
                     }
+                }
+                Direction::DownRight => {
+                    if self.knots[knot_index + 1].cell.x == self.knots[knot_index].cell.x {
+                        self.move_knot(Direction::Down, knot_index + 1)
+                    } else if self.knots[knot_index + 1].cell.y == self.knots[knot_index].cell.y {
+                        self.move_knot(Direction::Right, knot_index + 1)
+                    } else {
+                        self.move_knot(Direction::DownRight, knot_index + 1)
+                    };
                 }
                 Direction::Down => {
-                    if self.tail.cell.x - self.head.cell.x < 0 {
-                        self.tail.move_command(Direction::DownRight);
+                    if self.knots[knot_index + 1].cell.x - self.knots[knot_index].cell.x < 0 {
+                        self.move_knot(Direction::DownRight, knot_index + 1);
                     } else {
-                        self.tail.move_command(Direction::DownLeft);
+                        self.move_knot(Direction::DownLeft, knot_index + 1);
                     }
+                }
+                Direction::DownLeft => {
+                    if self.knots[knot_index + 1].cell.x == self.knots[knot_index].cell.x {
+                        self.move_knot(Direction::Down, knot_index + 1)
+                    } else if self.knots[knot_index + 1].cell.y == self.knots[knot_index].cell.y {
+                        self.move_knot(Direction::Left, knot_index + 1)
+                    } else {
+                        self.move_knot(Direction::DownLeft, knot_index + 1)
+                    };
                 }
                 Direction::Left => {
-                    if self.tail.cell.y - self.head.cell.y < 0 {
-                        self.tail.move_command(Direction::UpLeft);
+                    if self.knots[knot_index + 1].cell.y - self.knots[knot_index].cell.y < 0 {
+                        self.move_knot(Direction::UpLeft, knot_index + 1);
                     } else {
-                        self.tail.move_command(Direction::DownLeft);
+                        self.move_knot(Direction::DownLeft, knot_index + 1);
                     }
                 }
-                _ => panic!("Unexpected head direction command"),
+                Direction::UpLeft => {
+                    if self.knots[knot_index + 1].cell.x == self.knots[knot_index].cell.x {
+                        self.move_knot(Direction::Up, knot_index + 1)
+                    } else if self.knots[knot_index + 1].cell.y == self.knots[knot_index].cell.y {
+                        self.move_knot(Direction::Left, knot_index + 1)
+                    } else {
+                        self.move_knot(Direction::UpLeft, knot_index + 1)
+                    };
+                }
             }
         }
 
         // // add the tail cell to the tail visited vector
-        if !self.tail.visitedCells.contains(&self.tail.cell) {
-            self.tail.visitedCells.push(self.tail.cell.clone());
+        if !self.knots[knot_index + 1]
+            .visited_cells
+            .contains(&self.knots[knot_index + 1].cell)
+        {
+            let new_cell = self.knots[knot_index + 1].cell.clone();
+            self.knots[knot_index + 1].visited_cells.push(new_cell);
         }
         return;
     }
 
     fn execute_command(&mut self, command: &Command) {
+        println!("command: {:?}", command);
         for _i in 0..command.repeat {
-            self.move_by_head(command.direction);
+            self.move_knot(command.direction, 0);
+            println!("rope:\n{}", self);
         }
     }
 }
 
 #[test]
 fn test_move_rope_by_head() {
-    let mut r = Rope::new();
-    assert_eq!(r.tail.visitedCells[0], Cell::new(0, 0));
+    let mut r = Rope::new(2);
+    println!("r: {}", r);
+    assert_eq!(r.knots[1].visited_cells[0], Cell::new(0, 0));
 
-    r.move_by_head(Direction::Up); // 0,1
-    assert_eq!(r.tail.cell, Cell::new(0, 0));
+    r.move_knot(Direction::Up, 0); // 0,1
+    assert_eq!(r.knots[1].cell, Cell::new(0, 0));
 
-    r.move_by_head(Direction::Up); // 0,2
-    assert_eq!(r.tail.cell, Cell::new(0, 1));
-    assert_eq!(r.tail.visitedCells[1], Cell::new(0, 1));
+    r.move_knot(Direction::Up, 0); // 0,2
+    assert_eq!(r.knots[1].cell, Cell::new(0, 1));
+    assert_eq!(r.knots[1].visited_cells[1], Cell::new(0, 1));
 
-    r.move_by_head(Direction::Right); // 1,2
-    assert_eq!(r.tail.cell, Cell::new(0, 1));
+    r.move_knot(Direction::Right, 0); // 1,2
+    assert_eq!(r.knots[1].cell, Cell::new(0, 1));
 
-    r.move_by_head(Direction::Up); // 1,3
-    assert_eq!(r.tail.cell, Cell::new(1, 2));
-    assert_eq!(r.tail.visitedCells[2], Cell::new(1, 2));
+    r.move_knot(Direction::Up, 0); // 1,3
+    assert_eq!(r.knots[1].cell, Cell::new(1, 2));
+    assert_eq!(r.knots[1].visited_cells[2], Cell::new(1, 2));
+}
+
+#[test]
+fn test_diagonal_moves() {
+    let mut r = Rope::new(2);
+    r.execute_command(&Command::new(Direction::UpRight, 1));
+    r.execute_command(&Command::new(Direction::UpLeft, 1));
+    assert_eq!(Cell::new(0, 1), r.knots[1].cell);
+
+    let mut r = Rope::new(2);
+    r.execute_command(&Command::new(Direction::UpRight, 1));
+    r.execute_command(&Command::new(Direction::DownRight, 1));
+    assert_eq!(Cell::new(1, 0), r.knots[1].cell);
+
+    let mut r = Rope::new(2);
+    r.execute_command(&Command::new(Direction::DownRight, 1));
+    r.execute_command(&Command::new(Direction::DownLeft, 1));
+    assert_eq!(Cell::new(0, -1), r.knots[1].cell);
+
+    let mut r = Rope::new(2);
+    r.execute_command(&Command::new(Direction::DownLeft, 1));
+    r.execute_command(&Command::new(Direction::UpLeft, 1));
+    assert_eq!(Cell::new(-1, 0), r.knots[1].cell);
 }
 
 impl Display for Rope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        return write!(f, "Head: {}\nTail: {}", self.head.cell, self.tail.cell);
+        return write!(
+            f,
+            "{}",
+            self.knots
+                .iter()
+                .enumerate()
+                .map(|(i, knot)| [i.to_string(), knot.to_string()].join(" "))
+                .collect::<Vec<String>>()
+                .join("\n")
+        );
     }
 }
 
-struct RopeEnd {
+struct Knot {
     cell: Cell,
-    visitedCells: Vec<Cell>,
+    visited_cells: Vec<Cell>,
 }
 
-impl RopeEnd {
+impl Knot {
     fn new(x: i32, y: i32) -> Self {
-        return RopeEnd {
+        return Knot {
             cell: Cell::new(x, y),
-            visitedCells: vec![Cell::new(x, y)],
+            visited_cells: vec![Cell::new(x, y)],
         };
     }
 
@@ -225,7 +324,7 @@ impl RopeEnd {
     }
 }
 
-impl Display for RopeEnd {
+impl Display for Knot {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         return write!(f, "{}", self.cell);
     }
@@ -237,12 +336,15 @@ fn main() {
         .map(|row| Command::parse_string(row).unwrap_or_else(|| panic!("failed to parse command")))
         .collect();
 
-    let mut r = Rope::new();
+    let mut r = Rope::new(10);
 
     for command in commands {
         r.execute_command(&command);
     }
 
-    println!("r.tail.visitedCells: {:?}", r.tail.visitedCells);
-    println!("r.tail.visitedCells.len(): {:?}", r.tail.visitedCells.len());
+    println!("tail.visitedCells: {:?}", r.get_tail().visited_cells);
+    println!(
+        "tail.visitedCells.len(): {:?}",
+        r.get_tail().visited_cells.len()
+    );
 }

@@ -7,6 +7,15 @@ D 1
 L 5
 R 2";
 
+pub const TEST_INPUT_2: &str = "R 5
+U 8
+L 8
+D 3
+R 17
+D 10
+L 25
+U 20";
+
 pub const REAL_INPUT: &str = "U 2
 D 2
 R 2
